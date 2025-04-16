@@ -1,0 +1,2 @@
+C:/Users/guido/quonq_app/android/app/.cxx/Debug/5v4w5v2u/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/guido/quonq_app/android/app/.cxx/Debug/5v4w5v2u/armeabi-v7a/CMakeFiles/rebuild_cache.dir

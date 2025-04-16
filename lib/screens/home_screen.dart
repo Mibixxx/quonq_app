@@ -42,7 +42,6 @@ class ActivityChart extends StatelessWidget {
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
-            tooltipBgColor: Colors.black87,
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               final activityName = activities[groupIndex].name;
               return BarTooltipItem(
@@ -50,21 +49,24 @@ class ActivityChart extends StatelessWidget {
                 TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 children: [
                   TextSpan(
-                    text: '${rod.y.toInt()} volte',
+                    text: '${rod.toY.toInt()} volte',
                     style: TextStyle(color: Colors.yellowAccent),
-                  )
+                  ),
                 ],
               );
             },
           ),
         ),
         titlesData: FlTitlesData(
-          leftTitles: SideTitles(showTitles: true),
-          bottomTitles: SideTitles(
-            showTitles: true,
-            getTitles: (value) => activities[value.toInt()].name,
-            getTextStyles: (context) =>
-                TextStyle(fontSize: 10, color: Colors.black87),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: true),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) =>
+                  Text(activities[value.toInt()].name),
+            ),
           ),
         ),
         barGroups: activities.asMap().entries.map((entry) {
@@ -79,11 +81,11 @@ class ActivityChart extends StatelessWidget {
             x: index,
             barRods: [
               BarChartRodData(
-                y: count.toDouble(),
-                colors: [colors[index % colors.length]],
+                toY: count.toDouble(),
+                color: colors[index % colors.length],
                 borderRadius: BorderRadius.circular(6),
                 width: 18,
-              )
+              ),
             ],
           );
         }).toList(),
@@ -217,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Le mie attività'),
+        title: const Text('Le mie attività quonquettinose'),
       ),
       body: Column(
         children: [

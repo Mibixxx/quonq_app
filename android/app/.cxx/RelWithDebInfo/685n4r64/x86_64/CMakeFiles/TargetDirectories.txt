@@ -1,0 +1,2 @@
+C:/Users/guido/quonq_app/android/app/.cxx/RelWithDebInfo/685n4r64/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/guido/quonq_app/android/app/.cxx/RelWithDebInfo/685n4r64/x86_64/CMakeFiles/rebuild_cache.dir
