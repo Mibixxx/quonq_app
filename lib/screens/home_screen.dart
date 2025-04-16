@@ -1,98 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/activity.dart';
+import '../widgets/activity_chart.dart';
+import '../widgets/activity_card.dart';
 import '../services/local_storage.dart';
-import 'dart:convert';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:fl_chart/fl_chart.dart';
-
-class ActivityChart extends StatelessWidget {
-  final List<Activity> activities;
-
-  ActivityChart({required this.activities});
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final oneMonthAgo = now.subtract(Duration(days: 30));
-    final colors = [
-      Colors.teal,
-      Colors.orange,
-      Colors.purple,
-      Colors.blue,
-      Colors.green,
-      Colors.red,
-    ];
-
-    final counts = activities
-        .map((activity) => activity.occurrences
-            .where((d) => d.isAfter(oneMonthAgo))
-            .length
-            .toDouble())
-        .toList();
-
-    final maxCount =
-        counts.isEmpty ? 0 : counts.reduce((a, b) => a > b ? a : b);
-    final maxY = maxCount;
-
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: maxY + 1,
-        barTouchData: BarTouchData(
-          enabled: true,
-          touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              final activityName = activities[groupIndex].name;
-              return BarTooltipItem(
-                '$activityName\n',
-                TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                children: [
-                  TextSpan(
-                    text: '${rod.toY.toInt()} volte',
-                    style: TextStyle(color: Colors.yellowAccent),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: true),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) =>
-                  Text(activities[value.toInt()].name),
-            ),
-          ),
-        ),
-        barGroups: activities.asMap().entries.map((entry) {
-          final index = entry.key;
-          final activity = entry.value;
-          final count = activity.occurrences
-              .where(
-                  (d) => d.isAfter(DateTime.now().subtract(Duration(days: 30))))
-              .length;
-
-          return BarChartGroupData(
-            x: index,
-            barRods: [
-              BarChartRodData(
-                toY: count.toDouble(),
-                color: colors[index % colors.length],
-                borderRadius: BorderRadius.circular(6),
-                width: 18,
-              ),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -108,38 +18,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadActivities();
+    _loadAndInsertActivities();
   }
 
-  Future<void> _loadActivities() async {
-    final file = await _localFile;
-    if (await file.exists()) {
-      final contents = await file.readAsString();
-      final List<dynamic> jsonData = jsonDecode(contents);
-      final loadedActivities = jsonData
-          .map((json) => Activity.fromJson(json as Map<String, dynamic>))
-          .toList();
+  Future<void> _loadAndInsertActivities() async {
+    final loadedActivities = await loadActivities();
 
-      setState(() {
-        activities.clear();
-      });
+    setState(() {
+      activities.clear();
+    });
 
-      for (int i = 0; i < loadedActivities.length; i++) {
-        activities.add(loadedActivities[i]);
-        _listKey.currentState?.insertItem(i);
-      }
+    for (int i = 0; i < loadedActivities.length; i++) {
+      activities.add(loadedActivities[i]);
+      _listKey.currentState?.insertItem(i);
     }
-  }
-
-  Future<void> _saveActivities() async {
-    final file = await _localFile;
-    final jsonData = activities.map((activity) => activity.toJson()).toList();
-    await file.writeAsString(jsonEncode(jsonData));
-  }
-
-  Future<File> get _localFile async {
-    final directory = await getApplicationDocumentsDirectory();
-    return File('${directory.path}/activities.json');
   }
 
   void _addActivity() {
@@ -168,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   activities.insert(0, newActivity);
                   _listKey.currentState?.insertItem(0);
                 });
-                _saveActivities();
+                saveActivities(activities);
                 Navigator.of(context).pop();
               },
             ),
@@ -182,14 +74,14 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       activity.occurrences.add(DateTime.now());
     });
-    _saveActivities();
+    saveActivities(activities);
   }
 
   void _decrement(Activity activity) {
     setState(() {
       if (activity.occurrences.isNotEmpty) activity.occurrences.removeLast();
     });
-    _saveActivities();
+    saveActivities(activities);
   }
 
   void _options(Activity activity, int index) {
@@ -208,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _buildAnimatedItem(removed, index, animation),
                     duration: Duration(milliseconds: 300),
                   );
-                  _saveActivities();
+                  saveActivities(activities);
                   Navigator.of(context).pop();
                 },
               ));
@@ -259,49 +151,11 @@ class _HomeScreenState extends State<HomeScreen> {
       Activity activity, int index, Animation<double> animation) {
     return SizeTransition(
       sizeFactor: animation,
-      child: _buildActivityCard(activity, index),
-    );
-  }
-
-  Widget _buildActivityCard(Activity activity, int index) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: GestureDetector(
+      child: ActivityCard(
+        activity: activity,
+        onIncrement: () => _increment(activity),
+        onDecrement: () => _decrement(activity),
         onLongPress: () => _options(activity, index),
-        child: Card(
-          elevation: 3,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  activity.name,
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w500),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
-                      onPressed: () => _decrement(activity),
-                    ),
-                    Text(
-                      '${activity.count}',
-                      style: const TextStyle(fontSize: 18),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline),
-                      onPressed: () => _increment(activity),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
