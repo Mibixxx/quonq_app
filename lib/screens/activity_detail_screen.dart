@@ -35,7 +35,6 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ElevatedButton(
-                  child: Text("Seleziona data"),
                   onPressed: () async {
                     final picked = await showDatePicker(
                       context: context,
@@ -44,9 +43,16 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                       lastDate: DateTime.now(),
                     );
                     if (picked != null) {
-                      setDialogState(() => selectedDate = picked);
+                      setDialogState(() {
+                        selectedDate = picked;
+                      });
                     }
                   },
+                  child: Text(
+                    'Data: ${selectedDate.day.toString().padLeft(2, '0')}/'
+                    '${selectedDate.month.toString().padLeft(2, '0')}/'
+                    '${selectedDate.year}',
+                  ),
                 ),
                 if (widget.activity.name.toLowerCase() == "piscina")
                   TextField(
@@ -123,9 +129,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) return;
-        // Se il chiamante non ha già specificato un risultato, lo forniamo noi
-        if (result == null) {
+        if (!didPop && result == null) {
           Navigator.of(context).pop(true);
         }
       },
