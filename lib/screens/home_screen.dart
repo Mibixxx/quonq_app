@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/activity.dart';
+import '../models/occurrence.dart';
+import '../screens/activity_detail_screen.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/services.dart';
 
 class ActivityChart extends StatelessWidget {
   final List<Activity> activities;
@@ -25,7 +28,7 @@ class ActivityChart extends StatelessWidget {
 
     final counts = activities
         .map((activity) => activity.occurrences
-            .where((d) => d.isAfter(oneYearAgo))
+            .where((o) => o.date.isAfter(oneYearAgo))
             .length
             .toDouble())
         .toList();
@@ -80,8 +83,9 @@ class ActivityChart extends StatelessWidget {
           barGroups: activities.asMap().entries.map((entry) {
             final index = entry.key;
             final activity = entry.value;
-            final count =
-                activity.occurrences.where((d) => d.isAfter(oneYearAgo)).length;
+            final count = activity.occurrences
+                .where((o) => o.date.isAfter(oneYearAgo))
+                .length;
 
             return BarChartGroupData(
               x: index,
@@ -185,11 +189,85 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _increment(Activity activity) {
-    setState(() {
-      activity.occurrences.add(DateTime.now());
-    });
-    _saveActivities();
+  void _increment(Activity activity) async {
+    DateTime selectedDate = DateTime.now();
+
+    final Occurrence? newOccurrence = await showDialog<Occurrence>(
+      context: context,
+      builder: (context) {
+        final TextEditingController vascheController = TextEditingController();
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Aggiungi occorrenza'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton(
+                    child: Text("Seleziona data"),
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          selectedDate = picked;
+                        });
+                      }
+                    },
+                  ),
+                  if (activity.name.toLowerCase() == "piscina")
+                    TextField(
+                      controller: vascheController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter
+                            .digitsOnly, // Consente solo cifre
+                      ],
+                      decoration: InputDecoration(
+                        labelText: 'Numero di vasche completate',
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: Text('Annulla'),
+                  onPressed: () => Navigator.of(context).pop(null),
+                ),
+                TextButton(
+                  child: Text('Salva'),
+                  onPressed: () {
+                    int? parsedVasche;
+                    if (activity.name.toLowerCase() == "piscina") {
+                      parsedVasche = int.tryParse(vascheController.text) ?? 0;
+                    }
+                    Navigator.of(context).pop(
+                      Occurrence(
+                        date: selectedDate,
+                        vasche: activity.name.toLowerCase() == "piscina"
+                            ? parsedVasche
+                            : null,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (newOccurrence != null) {
+      setState(() {
+        activity.occurrences.add(newOccurrence);
+      });
+      _saveActivities();
+    }
   }
 
   void _decrement(Activity activity) {
@@ -201,11 +279,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _options(Activity activity, int index) {
     showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-              title: Text('Opzioni "${activity.name}"'),
-              content: TextButton(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Opzioni "${activity.name}"'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton(
+                child: const Text('Visualizza dettagli'),
+                onPressed: () {
+                  Navigator.of(context).pop(); // Chiudi il dialog
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => ActivityDetailScreen(
+                        activity: activity,
+                        onSave: _saveActivities,
+                        onUpdate: () {
+                          setState(
+                              () {}); // Questo forza il rebuild della schermata Home
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+              TextButton(
                 child: const Text('Elimina'),
                 onPressed: () {
                   final removed = activities.removeAt(index);
@@ -216,10 +315,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     duration: Duration(milliseconds: 300),
                   );
                   _saveActivities();
-                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(); // Chiudi il dialog
                 },
-              ));
-        });
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -293,11 +396,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           fontSize: 18, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 4),
-                    ...activity.occurrences.reversed.map((date) {
+                    ...activity.occurrences.reversed.map((o) {
                       final formatted =
-                          "${date.day.toString().padLeft(2, '0')}/"
-                          "${date.month.toString().padLeft(2, '0')}/"
-                          "${date.year}";
+                          "${o.date.day.toString().padLeft(2, '0')}/"
+                          "${o.date.month.toString().padLeft(2, '0')}/"
+                          "${o.date.year}";
                       return Text(
                         formatted,
                         style: TextStyle(

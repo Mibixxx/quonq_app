@@ -22,7 +22,7 @@ class ActivityChart extends StatelessWidget {
 
     final counts = activities
         .map((activity) => activity.occurrences
-            .where((d) => d.isAfter(oneMonthAgo))
+            .where((o) => o.date.isAfter(oneMonthAgo))
             .length
             .toDouble())
         .toList();
@@ -69,8 +69,8 @@ class ActivityChart extends StatelessWidget {
           final index = entry.key;
           final activity = entry.value;
           final count = activity.occurrences
-              .where(
-                  (d) => d.isAfter(DateTime.now().subtract(Duration(days: 30))))
+              .where((o) =>
+                  o.date.isAfter(DateTime.now().subtract(Duration(days: 30))))
               .length;
 
           return BarChartGroupData(
